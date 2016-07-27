@@ -8,7 +8,7 @@ Resources that implement the IAM interface provide the following methods:
 Policy Editing Methods
 ----------------------
 
->>> resource.add_roles(iam.USER('alice@example.com'), resource.roles.OWNER, resource.roles.EDITOR)
+>>> resource.add_roles(iam.user('alice@example.com'), resource.roles.OWNER, resource.roles.EDITOR)
 True
 
 The first argument is one of the IAM "Member" types:

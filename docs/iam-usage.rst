@@ -9,6 +9,10 @@ Resources that implement the IAM interface provide the following methods:
 Policy Editing Methods
 ----------------------
 
+.. note:: All policy editing methods except ``set_policy`` have an optional
+   ``retries`` keyword argument that takes the number of times to retry in the
+   even of an interrupted transaction
+
 >>> resource.add_roles(iam.user('alice@example.com'), iam.roles.OWNER.name, iam.roles.EDITOR.name)
 True
 
@@ -66,22 +70,38 @@ Finally, ``iam.PolicyChange`` exposes an ``apply`` method, which takes a resourc
 
 Just like above, this method returns True if the change was successfully made, or False otherwise. 
 
->>> resource.set_policy({iam.roles.OWNER.name: [iam.user('alice@example.com')],
->>>                      iam.roles.EDITOR.name: [(iam.user('alice@example.com'), (iam.user('charles@example.com')]})
+>>> resource.set_policy(
+>>>     {
+>>>         iam.roles.OWNER.name: [iam.user('alice@example.com')],
+>>>         iam.roles.EDITOR.name: [(iam.user('alice@example.com'), (iam.user('charles@example.com')]
+>>>     },
+>>>     etag=XXXXXX,
+>>>     version=0
+>>>)
 
-Finally, you can manually set the policy of a resource. Use this only if you don't need any transactionality guarantees.
+Finally, you can manually set the policy of a resource.
+``set_policy`` takes a policy, and optionally an ``etag`` string, and version number.
+
+Version is provided for end-user use, while etag can be used to guarantee transactionality.
+
+
+Use this only if you don't need any transactionality guarantees, or want to handle transactionality yourself, using etag.
+
 If updates are made to your policy during this change, they will be overwritten with exactly what is in your policy.
+Or, if an etag is specified they will fail with a ``TrasactionInterruptedException``
 
 
 Policy Access Methods
 ---------------------
 
-As seen above, IAM Policies are simply dictionaries, of the following form. 
+As seen above, IAM Policies are simply dictionaries, of the following form.
 
 ``{role_string: [member_string, member_string], role_string...}``
 
 >>> resource.get_policy()
-{'roles/owner': ['user:alice@example.com')], 'roles/editor': [('user:alice@example.com'), ('user:charles@example.com')]}
+{'roles/owner': ['user:alice@example.com')], 'roles/editor': [('user:alice@example.com'), ('user:charles@example.com')]}, 0, XXXXX
+
+``get_policy`` returns a tuple ``policy, version, etag``
 
 As you can see, when printed out roles and members will not be distinguishable from strings, (because they are strings).
 

@@ -47,7 +47,7 @@ Same as above, but removes all listed members from the specified role.
 >>> def remove_fn(member):
 >>>     return iam.is_group(member) or member == iam.user('bob@example.com')
 >>> policy_change = iam.PolicyChange().add(resource.roles.OWNER, members=[iam.user('alice@example.com')])
->>>                                   .remove(resource.roles.EDITOR, members=[iam.group('devs@example.com']))
+>>>                                   .remove(resource.roles.EDITOR, members=[iam.group('devs@example.com')]))
 >>>                                   .remove(resource.roles.READER, fn=remove_fn)
 >>> policy_change.apply(resource)
 True

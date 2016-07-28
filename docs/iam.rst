@@ -44,28 +44,20 @@ True
 
 Same as above, but removes all listed members from the specified role.
 
-
->>> user_emails = ['alice@example.com']
 >>> def remove_fn(member):
 >>>     return iam.is_group(member) or member == iam.user('bob@example.com')
->>> policy_change1 = iam.PolicyChange(resource.roles.OWNER).remove(iam.group('devs@example.com'))
->>> for user in user_emails:
->>>     policy_change1.add(iam.user(user))
->>> policy_change2 = iam.PolicyChange(resource.roles.EDITOR).remove(remove_fn=remove_fn)
->>> resource.update_policy(policy_change1, policy_change2)
+>>> policy_change = iam.PolicyChange().add(resource.roles.OWNER, members=[iam.user('alice@example.com')])
+>>>                                   .remove(resource.roles.EDITOR, members=[iam.group('devs@example.com'))
+>>>                                   .remove(resource.roles.READER, fn=remove_fn)
+>>> policy_change.apply(resource)
 True
 
-If you need more complex logic to modify an IAM policy you can create a list of ``iam.PolicyChange`` s, and call ``resource.update_policy(...)``
-with your policy changes.
+If you need more complex logic to modify an IAM policy you can create a ``iam.PolicyChange`` object.
 
-A policy requires a ``role`` in the constructor, and provides two methods, ``add`` and ``remove``.
-``add`` takes any number of members, and returns the ``iam.PolicyChange``. Note that this is just for convenience, state
-is stored on the ``iam.PolicyChange`` object (see e.g. the looping usage).
+``iam.PolicyChange`` exposes three methods. ``add`` and ``remove`` take a role, and a list of members, and add, or remove
+those members from the specified roll respectively. ``remove`` also has the option of taking a ``fn`` keyword argument, which is a function object. This function takes a ``member`` string and returns whether or not the member should have the specified role. 
 
-``remove`` can also take any number of members, and returns the ``iam.PolicyChange``.
-It can also take a ``remove_fn`` keyword argument, a function that takes a member string and returns whether or not it should
-have the specified role. This function will be used to determine membership for all of the members that *currently* have
-the specified role.
+Finally, ``iam.PolicyChange`` exposes an ``apply`` method, which takes a resource, and applys the change to the resource.
 
 Just like above, this method returns True if the change was successfully made, or False otherwise. 
 

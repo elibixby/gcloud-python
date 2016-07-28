@@ -46,16 +46,19 @@ Same as above, but removes all listed members from the specified role.
 
 >>> def remove_fn(member):
 >>>     return iam.is_group(member) or member == iam.user('bob@example.com')
->>> policy_change = iam.PolicyChange().add(resource.roles.OWNER, members=[iam.user('alice@example.com')])
->>>                                   .remove(resource.roles.EDITOR, members=[iam.group('devs@example.com')]))
+>>> policy_change = iam.PolicyChange().add(resource.roles.OWNER, iam.user('alice@example.com'))
+>>>                                   .remove(resource.roles.EDITOR,
+>>>                                           iam.domain('example.com'), iam.group('devs@example.com'))
 >>>                                   .remove(resource.roles.READER, fn=remove_fn)
 >>> policy_change.apply(resource)
 True
 
 If you need more complex logic to modify an IAM policy you can create a ``iam.PolicyChange`` object.
 
-``iam.PolicyChange`` exposes three methods. ``add`` and ``remove`` take a role, and a list of members, and add, or remove
-those members from the specified roll respectively. ``remove`` also has the option of taking a ``fn`` keyword argument, which is a function object. This function takes a ``member`` string and returns whether or not the member should have the specified role. 
+``iam.PolicyChange`` exposes three methods. ``add`` and ``remove`` take a role, and any number of members, and add, or remove
+those members from the specified roll respectively. They have thee same signature as ``resource.add_members`` and ``resource.remove_members`` respectively.
+``remove`` also has the option of taking a ``fn`` keyword argument, which is a function object.
+This function takes a ``member`` string and returns whether or not the member should have the specified role.
 
 Finally, ``iam.PolicyChange`` exposes an ``apply`` method, which takes a resource, and applys the change to the resource.
 

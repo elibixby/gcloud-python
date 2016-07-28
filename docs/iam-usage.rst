@@ -8,7 +8,7 @@ Resources that implement the IAM interface provide the following methods:
 Policy Editing Methods
 ----------------------
 
->>> resource.add_roles(iam.user('alice@example.com'), resource.roles.OWNER, resource.roles.EDITOR)
+>>> resource.add_roles(iam.user('alice@example.com'), iam.roles.OWNER.name, iam.roles.EDITOR.name)
 True
 
 The first argument is one of the IAM "Member" types:
@@ -23,33 +23,34 @@ The first argument is one of the IAM "Member" types:
 Note that all of these are convenience wrappers around strings. See the list of member string formats `here <https://cloud.google.com/iam/docs/managing-policies>`_.
 
 All following arguments are roles to added to the specified member. Roles are simply strings that correspond to sets of permissions.
-The resource should provide an enumeration of the possible "curated roles" for the resource.
-You can acquire this list by running ``gcloud iam list-grantable-roles //fully/qualified/resource/path``.
+The ``iam`` module provides a (possibly incomplete) list of curated roles.
+You can acquire the complete list by running ``gcloud iam list-grantable-roles //fully/qualified/resource/path``, and use the
+names provided there in place of ``iam.roles.XXXX.name`` wherever the latter is used in this doc.
 
 This method returns ``True`` if the change to the resource's policy was made successfully, and returns ``False`` otherwise
 (such as in the case of an update being made during this update).
 
->>> resource.remove_roles(iam.group('devs@example.com'), resource.roles.OWNER, resource.roles.EDITOR)
+>>> resource.remove_roles(iam.group('devs@example.com'), iam.roles.OWNER.name, iam.roles.EDITOR.name)
 False
 
 Same as above, but removes the specified roles from the specified member.
 
->>> resource.add_members(resource.roles.OWNER, iam.domain('example.com'), iam.service_account('compute@iam.my-project.example.com'))
+>>> resource.add_members(iam.roles.OWNER.name, iam.domain('example.com'), iam.service_account('compute@iam.my-project.example.com'))
 True
 
 Same as above, but the first argument is a role, and all subsequent arguments are members to which that role should be added.
 
->>> resource.remove_members(resource.roles.OWNER, iam.ALL_USERS)
+>>> resource.remove_members(iam.roles.OWNER.name, iam.ALL_USERS)
 True
 
 Same as above, but removes all listed members from the specified role.
 
 >>> def remove_fn(member):
 >>>     return iam.is_group(member) or member == iam.user('bob@example.com')
->>> policy_change = iam.PolicyChange().add(resource.roles.OWNER, iam.user('alice@example.com'))
->>>                                   .remove(resource.roles.EDITOR,
+>>> policy_change = iam.PolicyChange().add(iam.roles.OWNER.name, iam.user('alice@example.com'))
+>>>                                   .remove(iam.roles.EDITOR.name,
 >>>                                           iam.domain('example.com'), iam.group('devs@example.com'))
->>>                                   .remove(resource.roles.READER, fn=remove_fn)
+>>>                                   .remove(iam.roles.READER.name, fn=remove_fn)
 >>> policy_change.apply(resource)
 True
 
@@ -64,8 +65,8 @@ Finally, ``iam.PolicyChange`` exposes an ``apply`` method, which takes a resourc
 
 Just like above, this method returns True if the change was successfully made, or False otherwise. 
 
->>> resource.set_policy({resource.roles.OWNER: [iam.user('alice@example.com')],
->>>                      resource.roles.EDITOR: [(iam.user('alice@example.com'), (iam.user('charles@example.com')]})
+>>> resource.set_policy({iam.roles.OWNER.name: [iam.user('alice@example.com')],
+>>>                      iam.roles.EDITOR.name: [(iam.user('alice@example.com'), (iam.user('charles@example.com')]})
 
 Finally, you can manually set the policy of a resource. Use this only if you don't need any transactionality guarantees.
 If updates are made to your policy during this change, they will be overwritten with exactly what is in your policy.
@@ -88,7 +89,7 @@ As you can see, when printed out roles and members will not be distinguishable f
 
 Takes a member, returns a list of roles which the member has.
 
->>> resource.get_members(resource.roles.OWNER)
+>>> resource.get_members(iam.roles.OWNER.name)
 ['user:alice@example.com', 'group:devs@example.com']
 
 Takes a role, and returns a list of the members who have that role.

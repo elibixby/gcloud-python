@@ -1,7 +1,8 @@
 Using IAM For Users
 ===================
 
-.. note This document does not explain how Google Cloud IAM works, for that, please check out `the docs <https://cloud.google.com/iam/docs/>`_.
+.. note:: This document does not explain how Google Cloud IAM works,
+   for that, please check out `the docs <https://cloud.google.com/iam/docs/>`_.
 
 Resources that implement the IAM interface provide the following methods:
 
@@ -57,7 +58,7 @@ True
 If you need more complex logic to modify an IAM policy you can create a ``iam.PolicyChange`` object.
 
 ``iam.PolicyChange`` exposes three methods. ``add`` and ``remove`` take a role, and any number of members, and add, or remove
-those members from the specified roll respectively. They have thee same signature as ``resource.add_members`` and ``resource.remove_members`` respectively.
+those members from the specified roll respectively. They have the same signature as ``resource.add_members`` and ``resource.remove_members`` respectively.
 ``remove`` also has the option of taking a ``fn`` keyword argument, which is a function object.
 This function takes a ``member`` string and returns whether or not the member should have the specified role.
 
@@ -93,6 +94,29 @@ Takes a member, returns a list of roles which the member has.
 ['user:alice@example.com', 'group:devs@example.com']
 
 Takes a role, and returns a list of the members who have that role.
+
+Misc Methods
+------------
+
+>>> iam.missing_permission(resource, permissions)
+[permission1, permission2]
+
+Returns permissions (if any), in the specified list that the user does not possess.
+
+.. note:: This isn't of much use right now as there's no automated way to get the
+   set of permissions a method requires. Hopefully in the future this will be possible,
+   see b/28168402
+
+>>> iam.grantable_roles(resource)
+[<Role>, <Role>, <Role>]
+
+Returns a list of ``iam.Role`` objects that represent roles (and their associated metadata)
+which can be granted on the specified resource
+
+.. note:: This also isn't of much use because we cannot yet create custom Roles
+   but it's definitely coming.
+
+``iam.Role`` objects provide three properties, a ``name`` , ``title`` , and ``description`` .
 
 Using IAM For Contributors
 ==========================

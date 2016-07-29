@@ -1,19 +1,22 @@
 Using IAM For Users
 ===================
 
-.. note:: This document does not explain how Google Cloud IAM works,
-   for that, please check out `the docs <https://cloud.google.com/iam/docs/>`_.
+.. note:: This document assumes basic knowledge of Google Cloud IAM,
+   see `the docs <https://cloud.google.com/iam/docs/>`_ for details
 
 Resources that implement the IAM interface provide the following methods:
 
-Policy Editing Methods
-----------------------
+Policy Editing Convenience Methods
+----------------------------------
 
-.. note:: All policy editing methods except ``set_policy`` have an optional
-   ``retries`` keyword argument that takes the number of times to retry in the
-   even of an interrupted transaction
+Common keyword arguments:
 
->>> resource.add_roles(iam.user('alice@example.com'), iam.roles.OWNER.name, iam.roles.EDITOR.name)
+- ``retries`` number of times to retry in the
+   even of an interrupted transaction, (not available in ``set_policy``)
+- ``version`` version number of the new policy. Not used for transactionality.
+
+
+>>> resource.add_role(iam.user('alice@example.com'), iam.roles.OWNER.name)
 True
 
 The first argument is one of the IAM "Member" types:
@@ -21,13 +24,14 @@ The first argument is one of the IAM "Member" types:
 - ``iam.user(email)`` an individual Google account
 - ``iam.service_account(email)`` a Google Cloud Service Account
 - ``iam.group(email)`` a Google group.
-- ``iam.domain(domain_name)`` a Google-For-Work domain
+- ``iam.domain(domain_name)`` a Google apps domain
 - ``iam.ALL_AUTHENTICATED_USERS`` any authenticated user
 - ``iam.ALL_USERS``
 
-Note that all of these are convenience wrappers around strings. See the list of member string formats `here <https://cloud.google.com/iam/docs/managing-policies>`_.
+.. note:: that all of these are convenience wrappers around strings.
+   See the list of member string formats `here <https://cloud.google.com/iam/docs/managing-policies>`_.
 
-All following arguments are roles to added to the specified member. Roles are simply strings that correspond to sets of permissions.
+The second argument is a role to added to the specified member. Roles are simply strings that correspond to sets of permissions.
 The ``iam`` module provides a (possibly incomplete) list of curated roles.
 You can acquire the complete list by running ``gcloud iam list-grantable-roles //fully/qualified/resource/path``, and use the
 names provided there in place of ``iam.roles.XXXX.name`` wherever the latter is used in this doc.
@@ -35,15 +39,24 @@ names provided there in place of ``iam.roles.XXXX.name`` wherever the latter is 
 This method returns ``True`` if the change to the resource's policy was made successfully, and returns ``False`` otherwise
 (such as in the case of an update being made during this update).
 
->>> resource.remove_roles(iam.group('devs@example.com'), iam.roles.OWNER.name, iam.roles.EDITOR.name)
+>>> resource.remove_role(iam.user('bob@example.com'), iam.roles.OWNER.name)
+True
+
+
+>>> resource.add_roles(iam.user('alice@example.com'), [iam.roles.OWNER.name, iam.roles.EDITOR.name])
+True
+
+Same as ``resource.add_role`` the second argument is a list of roles to be added to the specified member.
+
+>>> resource.remove_roles(iam.group('devs@example.com'), [iam.roles.OWNER.name, iam.roles.EDITOR.name])
 False
 
 Same as above, but removes the specified roles from the specified member.
 
->>> resource.add_members(iam.roles.OWNER.name, iam.domain('example.com'), iam.service_account('compute@iam.my-project.example.com'))
+>>> resource.add_members(iam.roles.OWNER.name, [iam.domain('example.com'), iam.service_account('compute@iam.my-project.example.com')])
 True
 
-Same as above, but the first argument is a role, and all subsequent arguments are members to which that role should be added.
+The first argument is a role, and the second argument is a list of members to be added to that role.
 
 >>> resource.remove_members(iam.roles.OWNER.name, iam.ALL_USERS)
 True
@@ -52,8 +65,8 @@ Same as above, but removes all listed members from the specified role.
 
 >>> def remove_fn(member):
 >>>     return iam.is_group(member) or member == iam.user('bob@example.com')
->>> policy_change = iam.PolicyChange(version=2).add(iam.roles.OWNER.name, iam.user('alice@example.com'))
->>> policy_change.remove(iam.roles.EDITOR.name, iam.domain('example.com'), iam.group('devs@example.com'))
+>>> policy_change = iam.PolicyChange(version=2).add(iam.roles.OWNER.name, [iam.user('alice@example.com')])
+>>> policy_change.remove(iam.roles.EDITOR.name, [iam.domain('example.com'), iam.group('devs@example.com')])
 >>>              .remove_fn(iam.roles.READER.name, remove_fn)
 >>> policy_change.apply(resource)
 True
@@ -61,12 +74,12 @@ True
 If you need more complex logic to modify an IAM policy you can create a ``iam.PolicyChange`` object. ``PolicyChange`` takes
 an optional ``version`` keyword argument which specifies which version the updated policy should be considered.
 
-``iam.PolicyChange`` exposes four methods. ``add`` and ``remove`` take a role, and any number of members, and add, or remove
+``iam.PolicyChange`` exposes four methods. ``add`` and ``remove`` take a role, and a list of members, and add, or remove
 those members from the specified roll respectively. They have the same signature as ``resource.add_members`` and ``resource.remove_members`` respectively.
-``remove_fn`` tales a role and a function object as arguments.
+``remove_fn`` takes a role and a function object as arguments.
 The provided function takes a ``member`` string and returns whether or not the member should have the specified role.
 
-Finally, ``iam.PolicyChange`` exposes an ``apply`` method, which takes a resource, and applys the change to the resource.
+Finally, ``iam.PolicyChange`` exposes an ``apply`` method, which takes a resource, and applies the change to the resource.
 
 Just like above, this method returns True if the change was successfully made, or False otherwise. 
 
@@ -88,7 +101,7 @@ Version is provided for end-user use, while etag can be used to guarantee transa
 Use this only if you don't need any transactionality guarantees, or want to handle transactionality yourself, using etag.
 
 If updates are made to your policy during this change, they will be overwritten with exactly what is in your policy.
-Or, if an etag is specified they will fail with a ``TrasactionInterruptedException``
+Or, if an etag is specified they will fail with a ``TransactionInterruptedException``
 
 
 Policy Access Methods
@@ -123,18 +136,11 @@ Misc Methods
 
 Returns permissions (if any), in the specified list that the user does not possess.
 
-.. note:: This isn't of much use right now as there's no automated way to get the
-   set of permissions a method requires. Hopefully in the future this will be possible,
-   see b/28168402
-
 >>> iam.grantable_roles(resource)
 [<Role>, <Role>, <Role>]
 
 Returns a list of ``iam.Role`` objects that represent roles (and their associated metadata)
 which can be granted on the specified resource
-
-.. note:: This also isn't of much use because we cannot yet create custom Roles
-   but it's definitely coming.
 
 ``iam.Role`` objects provide three properties, a ``name`` , ``title`` , and ``description`` .
 

@@ -14,6 +14,7 @@ Common keyword arguments:
 - ``retries`` number of times to retry in the
    even of an interrupted transaction, (not available in ``set_policy``)
 - ``version`` version number of the new policy. Not used for transactionality.
+   provided for end-user use. Left blank, will increment the version by 1.
 
 
 >>> resource.add_role(iam.user('alice@example.com'), iam.roles.OWNER.name)
@@ -81,7 +82,7 @@ The provided function takes a ``member`` string and returns whether or not the m
 
 Finally, ``iam.PolicyChange`` exposes an ``apply`` method, which takes a resource, and applies the change to the resource.
 
-Just like above, this method returns True if the change was successfully made, or False otherwise. 
+Just like above, this method returns True if the change was successfully made, or False otherwise.
 
 >>> resource.set_policy(
 >>>     {
@@ -94,9 +95,6 @@ Just like above, this method returns True if the change was successfully made, o
 
 Finally, you can manually set the policy of a resource.
 ``set_policy`` takes a policy, and optionally an ``etag`` string, and version number.
-
-Version is provided for end-user use, while etag can be used to guarantee transactionality.
-
 
 Use this only if you don't need any transactionality guarantees, or want to handle transactionality yourself, using etag.
 
@@ -131,12 +129,12 @@ Takes a role, and returns a list of the members who have that role.
 Misc Methods
 ------------
 
->>> iam.missing_permission(resource, permissions)
+>>> resource.missing_permissions(*permissions)
 [permission1, permission2]
 
-Returns permissions (if any), in the specified list that the user does not possess.
+Returns permissions (if any), in the list that the user does not possess.
 
->>> iam.grantable_roles(resource)
+>>> resource.query_grantable_roles()
 [<Role>, <Role>, <Role>]
 
 Returns a list of ``iam.Role`` objects that represent roles (and their associated metadata)

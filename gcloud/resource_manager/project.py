@@ -16,9 +16,10 @@
 
 
 from gcloud.exceptions import NotFound
+from gcloud.iam.iam import _IAMMixin
 
 
-class Project(object):
+class Project(_IAMMixin):
     """Projects are containers for your work on Google Cloud Platform.
 
     .. note::

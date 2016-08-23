@@ -113,7 +113,7 @@ Resources that implement IAM provide low level methods for interacting with IAM.
 >>> print(etag)
 ffdFADFdsgfsjrsHTY
 
-``set_policy`` takes a policy dictionary, as well as optional ``version`` and ``etag`` paramters. If ``etag`` is specified the change will be rejected if ``etag`` does not match the etag of the current policy. ``iam.PolicyChange`` performs this "read-modify-write" cycle automatically for the user. If updates are made to your policy during this change, they will be overwritten with exactly what is in your policy, or, if an etag is specified they will fail with a ``iam.ConcurrentModificationError``
+``set_policy`` takes a policy dictionary, as well as optional ``version`` and ``etag`` paramters. If updates are made to your policy during this change, they will be overwritten with exactly what is in your policy, or, if an etag is specified they will fail with a ``iam.ConcurrentModificationError``. ``iam.PolicyChange`` performs this "read-modify-write" cycle automatically for the user.
 
 >>> policy['roles/owner'].add('user:charles@example.com')
 >>> policy, version, etag = resource.set_policy(policy, etag=etag)
@@ -155,16 +155,12 @@ The following methods are wrappers around the creation and application of an ``i
 >>> resource.remove_roles(iam.group('devs@example.com'), [iam.roles.OWNER.name, iam.roles.EDITOR.name])
 
 ``add_members`` takes an ``iam.Role`` and an iterable of members and adds each member to the role
+
 >>> resource.add_members(iam.roles.OWNER.name, [iam.domain('example.com'), iam.service_account('compute@iam.my-project.example.com')])
 
 ``remove_members`` has the same signature as ``add_members`` but removes all the members from the specified role.
+
 >>> resource.remove_members(iam.roles.OWNER.name, [iam.ALL_USERS])
-
-
-Finally, you can manually set the policy of a resource.
-``set_policy`` takes a policy, and optionally an ``etag`` string, and version number.
-
-Use this only if you don't need any transactionality guarantees, or want to handle transactionality yourself, using etag.
 
 
 IAM for Contributors

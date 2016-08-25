@@ -2,41 +2,54 @@ IAM User Guide
 ===================
 
 .. note::
-  This document assumes basic knowledge of Google Cloud IAM,
+  This document assumes basic knowledge of Google IAM,
   see `the docs <https://cloud.google.com/iam/docs/>`_ for details
 
-IAM Resources
+Google Identity and Access Management (IAM), is a system for managing Access Control Lists (ACLs) on Google Cloud Resources.
+It represents a shared interface used accross a growing number of Google Cloud APIs.
+
+IAM Types
 -------------
 
-The ``iam`` module provides a number of resources necessary for interacting with IAM.
+The ``iam`` module provides a number of types and convenience functions for interacting with IAM.
+
+.. note::
+  When ``resource`` is used throughout this document, it refers to an object backed by a Google Cloud API which implements the IAM-Meta API.
+  e.g:
+  >>> from gcloud import pubsub
+  >>> client = pubsub.Client()
+  >>> resource = client.Topic('my-topic')
 
 Members
 ~~~~~~~
 An IAM member is one of the following:
 
-- ``iam.user(email)`` an individual Google account
-- ``iam.service_account(email)`` a Google Cloud Service Account
-- ``iam.group(email)`` a Google group.
-- ``iam.domain(domain_name)`` a Google apps domain
-- ``iam.ALL_AUTHENTICATED_USERS`` any authenticated Google user
-- ``iam.ALL_USERS``
+-  An individual Google account: ``iam.user(email)``, or ``'user:{email}'``
+-  A Google Service Account: ``iam.service_account(email)``, or ``'serviceAccount:{email}'``
+-  A Google Group: ``iam.group(email)``, or ``'group:{email}``.
+-  A Google Apps domain: ``iam.domain(domain_name)``, or ``'domain:{email}``
+-  Any authenticated Google user: ``iam.ALL_AUTHENTICATED_USERS``, or ``'allAuthenticatedUsers'``
+-  Anyone: ``iam.ALL_USERS``, or ``'allUsers'``
 
 .. note::
-  that all of these are convenience wrappers around strings.
+  All of these are convenience wrappers around strings.
   See the list of member string formats `here <https://cloud.google.com/iam/docs/managing-policies>`_.
-  
+
 Roles
 ~~~~~
 
-Roles represent bundles of permissions that can be added to members.  For a complete list of roles available on a resource run 
+Roles represent bundles of permissions that can be added to members.
+For a complete list of roles available on a resource run::
 
-``gcloud iam list-grantable-roles //fully/qualified/resource/path``
+    ``gcloud iam list-grantable-roles //fully/qualified/resource/path``
+A ``Role`` object has the following properties:
 
-An ``iam.Role`` object has a name, title, and description
-
-- An ``iam.Role.name`` is the canonical name of a role. This will be the value used as keys in policy dictionaries (see below), and will be referred to as the "role string" throughout this document. E.g. ``'roles/owner'``.
-- ``iam.Role.title`` human readable title of the role. E.g. ``'Owner'``
-- ``iam.Role.description`` the description of a role
+- ``name``: the canonical name of a role. This will be the value
+  used as keys in policy dictionaries (see below), and will be
+  referred to as the "role string" throughout this document.
+  E.g. ``'roles/owner'``.
+- ``title``: human readable title of the role. E.g. ``'Owner'``
+- ``description``: the description of a role
 
 Policies
 ~~~~~~~~
@@ -49,18 +62,19 @@ Policy Changes
 
 An ``iam.PolicyChange`` object encapsulates changes to made to a policy transactionally. The ``iam.PolicyChange`` constructor takes an optional ``version`` keyword argument, an integer to use as the policy version. If ``version`` is ``None``, when applied ``iam.PolicyChange`` will increment whatever the current version of the policy is by 1.
 
-To apply a ``iam.PolicyChange`` to a resource which implements the IAM interface call the ``apply()`` method with the resource as an argument. 
+To apply a ``iam.PolicyChange`` to a resource which implements the IAM interface call the ``apply()`` method with the resource as an argument.
 
->>> policy_change = iam.PolicyChange(version=2).add(iam.roles.OWNER.name, [iam.user('alice@example.com')])
+>>> policy_change = iam.PolicyChange(version=2)
+>>> policy_change.add(iam.roles.OWNER, iam.user('alice@example.com'), iam.user('bob@example.com'))
 >>> policy, version, etag = policy_change.apply(resource)
 >>> print(policy)
-{'roles/owner': set(['user:alice@example.com'])}
+{'roles/owner': set(['user:alice@example.com', 'user:bob@example.com'])}
 >>> print(version)
 2
 >>> print(etag)
 xDSFbfdasfAEFdfCds
 
-Apply returns the new policy, it's version, and it's etag.
+``apply`` returns the new policy, it's version, and it's etag.
 
 Optionally, a ``version`` keyword argument can be supplied to ``apply`` which will override the ``version`` behavior of the policy change.
 
@@ -70,24 +84,29 @@ Optionally, a ``version`` keyword argument can be supplied to ``apply`` which wi
 
 Modifications can be added to a ``iam.PolicyChange`` object by one of two methods:
 
-First the user can directly add or remove members from a ``Role``. ``iam.PolicyChange`` exposes two methods for this, ``add`` and ``remove`` which both take a role string or ``iam.Role`` object and a list of member strings.
+- ``PolicyChange.add_members`` and ``PolicyChange.add_members`` which both take a role string or ``Role`` object and an arbitrary number of member strings.
 
->>> policy_change = iam.PolicyChange().add(iam.roles.OWNER, [iam.user('alice@example.com')])
->>> policy_change.remove(iam.roles.EDITOR, [iam.domain('example.com'), iam.group('devs@example.com')])
->>> policy, _, _ = policy_change.apply(resource)
->>> print(iam.user('alice@example.com') in policy[iam.roles.OWNER.name])
-True
->>> print(iam.domain('example.com') in policy[iam.roles.EDITOR.name])
-False
+    >>> alice = iam.user('alice@example.com')
+    >>> example = iam.domain('example.com')
+    >>> policy_change = iam.PolicyChange()
+    >>> policy_change.add(iam.roles.READER, alice)
+    >>> policy_change.remove(iam.roles.EDITOR,
+    ...     example, iam.group('devs@example.com'))
+    >>> policy, _, _ = policy_change.apply(resource)
+    >>> print(alice in policy[iam.roles.READER.name])
+    True
+    >>> print(iam.domain('example.com') in policy[iam.roles.EDITOR.name])
+    False
 
-Second the user can specify a "membership function" which will take a member string as an argument, and return ``True`` if the member should belong to the specified role, and ``False`` otherwise.
+- ``PolicyChange.fn`` which takes a role string or ``Role`` and a "membership function."
+  This membership function should take a member string as an argument, and return ``True`` if the member should belong to the specified role, and ``False`` otherwise.
 
->>> def membership_fn(member):
->>>     return not iam.is_group(member) or member == iam.user('bob@example.com')
->>> policy_change.fn(iam.roles.READER, membership_fn)
->>> policy, _, _ policy_change.apply(resource)
->>> print([member for member in policy[iam.roles.READER.name] if iam.is_group(member)])
-['user:bob@example.com']
+    >>> def membership_fn(member):
+    ...     return not iam.is_group(member) or member == iam.user('bob@example.com')
+    >>> policy_change.fn(iam.roles.READER, membership_fn)
+    >>> policy, _, _ policy_change.apply(resource)
+    >>> print([member for member in policy[iam.roles.READER.name] if iam.is_group(member)])
+    ['user:bob@example.com']
 
 
 Methods
@@ -136,23 +155,15 @@ which can be granted on the specified resource
 Convenience Methods
 ~~~~~~~~~~~~~~~~~~~
 
-The following methods are wrappers around the creation and application of an ``iam.PolicyChange`` object. 
+The following methods are wrappers around the creation and application of an ``iam.PolicyChange`` object.
 
-``add_role`` takes a single member, and a single ``iam.Role``, or role string, and adds the member to the role. ``add_role``
+``add_roles`` takes a single member, and an arbitrary number of ``iam.Role`` s or role strings, and adds the member to each role
 
->>> resource.add_role(iam.user('alice@example.com'), iam.roles.OWNER.name)
-
-``remove_role`` has the same signature as ``add_role`` but removes the member from the role.
-
->>> resource.remove_role(iam.user('bob@example.com'), iam.roles.OWNER.name)
-
-``add_roles`` takes a single member, and an iterable of ``iam.Role`` s or role strings, and the member to each role
-
->>> resource.add_roles(iam.user('alice@example.com'), [iam.roles.OWNER.name, iam.roles.EDITOR.name])
+>>> resource.add_roles(iam.user('alice@example.com'), iam.roles.OWNER.name, iam.roles.EDITOR)
 
 ``remove_roles`` has the same signature as ``resource.add_roles`` but removes all the specified roles from the member (where present)
 
->>> resource.remove_roles(iam.group('devs@example.com'), [iam.roles.OWNER.name, iam.roles.EDITOR.name])
+>>> resource.remove_roles(iam.group('devs@example.com'), iam.roles.OWNER.name, iam.roles.EDITOR.name)
 
 ``add_members`` takes an ``iam.Role`` and an iterable of members and adds each member to the role
 
